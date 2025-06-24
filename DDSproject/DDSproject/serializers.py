@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Client, Tema, Docente, Alumno, Curso
+from datetime import datetime, timedelta
 
 class ClientSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +16,7 @@ class TemaSerializer(serializers.ModelSerializer):
 class DocenteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Docente
-        fields = ['id', 'legajo', 'nombre', 'apellido']
+        fields = ['id', 'legajo', 'nombre', 'apellido', 'costo_semanal']
 
 class AlumnoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,3 +34,41 @@ class CursoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Curso
         fields = ['id', 'nombre', 'descripcion', 'tema', 'tema_id', 'fechaInicio', 'fechaFin', 'docente', 'docente_id', 'precio', 'alumnos', 'alumnos_id']
+
+class CursoListadoSerializer(serializers.ModelSerializer):
+    tema = serializers.CharField(source='tema.nombre')
+    docente = serializers.CharField(source='docente.nombre')
+    docente_apellido = serializers.CharField(source='docente.apellido')
+    costo_semanal = serializers.IntegerField(source='docente.costo_semanal')
+    costo_total = serializers.SerializerMethodField()
+    ganancia = serializers.SerializerMethodField()
+    cantidad_alumnos = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Curso
+        fields = ['id', 'nombre', 'tema', 'fechaInicio', 'fechaFin', 'docente', 'docente_apellido', 
+                 'costo_semanal', 'costo_total', 'ganancia', 'cantidad_alumnos']
+    
+    def get_costo_total(self, obj):
+        """Calcula el costo total basado en semanas completas"""
+        if not obj.fechaInicio or not obj.fechaFin:
+            return 0
+        
+        # Calcula la diferencia en días
+        delta = obj.fechaFin - obj.fechaInicio
+        dias_totales = delta.days
+        
+        # Calcula las semanas completas (7 días)
+        semanas_completas = dias_totales // 7
+        
+        # Multiplica por el costo semanal del docente
+        return semanas_completas * obj.docente.costo_semanal
+    
+    def get_ganancia(self, obj):
+        """Calcula la ganancia (precio - costo_total)"""
+        costo_total = self.get_costo_total(obj)
+        return obj.precio - costo_total
+    
+    def get_cantidad_alumnos(self, obj):
+        """Obtiene la cantidad de alumnos en el curso"""
+        return obj.alumnos.count()
