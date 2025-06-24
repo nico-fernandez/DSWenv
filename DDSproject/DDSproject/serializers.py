@@ -18,6 +18,11 @@ class DocenteSerializer(serializers.ModelSerializer):
         model = Docente
         fields = ['id', 'legajo', 'nombre', 'apellido', 'costo_semanal']
 
+    def validate_costo_semanal(self, value):
+        if value < 0:
+            raise serializers.ValidationError('El costo semanal debe ser un valor positivo.')
+        return value
+
 class AlumnoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alumno
@@ -34,6 +39,25 @@ class CursoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Curso
         fields = ['id', 'nombre', 'descripcion', 'tema', 'tema_id', 'fechaInicio', 'fechaFin', 'docente', 'docente_id', 'precio', 'alumnos', 'alumnos_id']
+    
+    def validate(self, data):
+        """Validación personalizada para las fechas"""
+        fecha_inicio = data.get('fechaInicio')
+        fecha_fin = data.get('fechaFin')
+        precio = data.get('precio')
+        
+        if fecha_inicio and fecha_fin:
+            if fecha_inicio >= fecha_fin:
+                raise serializers.ValidationError({
+                    'fechaFin': 'La fecha de fin debe ser posterior a la fecha de inicio.'
+                })
+        
+        if precio is not None and precio < 0:
+            raise serializers.ValidationError({
+                'precio': 'El precio debe ser un valor positivo.'
+            })
+        
+        return data
 
 class CursoListadoSerializer(serializers.ModelSerializer):
     tema = serializers.CharField(source='tema.nombre')
